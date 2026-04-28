@@ -1,4 +1,5 @@
-name: Build Windows QT Wallet
+
+name: Build Windows Daemon and CLI
 on: [workflow_dispatch, push]
 
 jobs:
@@ -18,29 +19,23 @@ jobs:
           # Correzione bdb.cpp
           sed -i 's/fs::copy_options::overwrite_existing/fs::copy_option::overwrite_if_exists/g' src/wallet/bdb.cpp
           sed -i 's/fs::copy_options/fs::copy_option/g' src/wallet/bdb.cpp || true
-          
           # Correzione fs.cpp
           sed -i '1i #include <limits>' src/fs.cpp
 
-      - name: Build Kapcoin QT
+      - name: Build Kapcoin
         run: |
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-          
-          # Qui riattiviamo la grafica (togliamo NO_QT=1)
           cd depends
-          make HOST=x86_64-w64-mingw32 NO_UPNP=1 NO_ZMQ=1 -j$(nproc)
+          make HOST=x86_64-w64-mingw32 NO_QT=1 NO_UPNP=1 NO_ZMQ=1 -j$(nproc)
           cd ..
-          
           ./autogen.sh
-          # Qui configuriamo per includere la GUI
-          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --with-gui=qt5 --without-miniupnpc --disable-tests --disable-bench --disable-zmq CXXFLAGS="-DBOOST_NO_CXX11_SCOPED_ENUMS"
-          
+          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench --disable-zmq --enable-static CXXFLAGS="-DBOOST_NO_CXX11_SCOPED_ENUMS"
           make -j$(nproc)
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kapcoin-qt-windows
+          name: kapcoin-windows-tools
           path: |
-            src/qt/kapcoin-qt.exe
             src/kapcoind.exe
+            src/kapcoin-cli.exe

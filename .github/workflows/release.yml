@@ -13,21 +13,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git g++-mingw-w64-x86-64-posix
 
+      - name: Fix Source Code
+        run: |
+          # Questo comando corregge l'errore fs::copy_options direttamente nel codice
+          sed -i 's/fs::copy_options::overwrite_existing/fs::copy_option::overwrite_if_exists/g' src/wallet/bdb.cpp
+          sed -i 's/fs::copy_options/fs::copy_option/g' src/wallet/bdb.cpp || true
+
       - name: Build Kapcoin Daemon
         run: |
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-          
-          # Prepariamo le dipendenze
           cd depends
           make HOST=x86_64-w64-mingw32 NO_QT=1 NO_UPNP=1 NO_ZMQ=1 -j$(nproc)
           cd ..
-          
-          # TRUCCO: Forziamo il compilatore a usare la vecchia versione di Boost per evitare l'errore fs::copy_options
-          export CXXFLAGS="-DBOOST_NO_CXX11_SCOPED_ENUMS"
-          
           ./autogen.sh
-          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench --disable-zmq --enable-static CXXFLAGS="-DBOOST_NO_CXX11_SCOPED_ENUMS"
-          
+          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench --disable-zmq --enable-static
           make -j$(nproc)
 
       - name: Upload Artifact

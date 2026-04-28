@@ -15,23 +15,16 @@ jobs:
 
       - name: Build Kapcoin Daemon
         run: |
-          # Impostiamo il compilatore corretto
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-          
-          # Costruiamo le dipendenze senza grafica
           cd depends
-          make HOST=x86_64-w64-mingw32 NO_QT=1 -j$(nproc)
+          make HOST=x86_64-w64-mingw32 NO_QT=1 NO_UPNP=1 NO_ZMQ=1 -j$(nproc)
           cd ..
-          
-          # Compiliamo il daemon
           ./autogen.sh
-          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench --enable-util-cli
+          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --without-libs --without-utils --disable-tests --disable-bench --disable-zmq --enable-static
           make -j$(nproc)
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: kapcoin-daemon-windows
-          path: |
-            src/kapcoind.exe
-            src/kapcoin-cli.exe
+          path: src/kapcoind.exe

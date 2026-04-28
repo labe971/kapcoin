@@ -15,9 +15,13 @@ jobs:
 
       - name: Fix Source Code
         run: |
-          # Questo comando corregge l'errore fs::copy_options direttamente nel codice
+          # Correzione errore bdb.cpp (già testata)
           sed -i 's/fs::copy_options::overwrite_existing/fs::copy_option::overwrite_if_exists/g' src/wallet/bdb.cpp
           sed -i 's/fs::copy_options/fs::copy_option/g' src/wallet/bdb.cpp || true
+          
+          # Correzione errore fs.cpp (quello nuovo)
+          # Aggiungiamo l'include mancante all'inizio del file
+          sed -i '1i #include <limits>' src/fs.cpp
 
       - name: Build Kapcoin Daemon
         run: |
@@ -25,8 +29,9 @@ jobs:
           cd depends
           make HOST=x86_64-w64-mingw32 NO_QT=1 NO_UPNP=1 NO_ZMQ=1 -j$(nproc)
           cd ..
+          export CXXFLAGS="-DBOOST_NO_CXX11_SCOPED_ENUMS"
           ./autogen.sh
-          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench --disable-zmq --enable-static
+          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench --disable-zmq --enable-static CXXFLAGS="-DBOOST_NO_CXX11_SCOPED_ENUMS"
           make -j$(nproc)
 
       - name: Upload Artifact

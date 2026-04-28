@@ -1,4 +1,4 @@
-name: Build Windows Wallet
+name: Build Windows Daemon
 on: [workflow_dispatch, push]
 
 jobs:
@@ -11,28 +11,26 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git
-          sudo apt-get install -y g++-mingw-w64-x86-64
+          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git g++-mingw-w64-x86_64
 
-      - name: Build Wallet
+      - name: Build Kapcoin Daemon
         run: |
-          # Questo comando prepara il compilatore per Windows dentro Linux
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
           
-          # Entriamo nella cartella delle dipendenze e le costruiamo
+          # Costruiamo le dipendenze ESCLUDENDO la grafica (Qt)
           cd depends
-          make HOST=x86_64-w64-mingw32 -j$(nproc)
+          make HOST=x86_64-w64-mingw32 NO_QT=1 -j$(nproc)
           cd ..
           
-          # Compiliamo il wallet vero e proprio
+          # Compiliamo solo il daemon e il CLI
           ./autogen.sh
-          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32
+          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench
           make -j$(nproc)
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kapcoin-windows-exe
+          name: kapcoin-daemon-windows
           path: |
-            src/qt/kapcoin-qt.exe
             src/kapcoind.exe
+            src/kapcoin-cli.exe

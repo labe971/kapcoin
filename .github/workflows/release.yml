@@ -1,119 +1,30 @@
-name: Build Release Binaries
+name: Build Windows Wallet
 
 on:
+  workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches: [ master, main ]
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-22.04
+  build-windows:
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libtool autotools-dev automake \
-            pkg-config bsdmainutils python3 libboost-all-dev libevent-dev \
-            libssl-dev libzmq3-dev libfmt-dev wget
+          choco install bdb boost openssl
 
-      - name: Build Berkeley DB 4.8
+      - name: Build Kapcoin
         run: |
-          wget -q http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz
-          tar xzf db-4.8.30.NC.tar.gz
-          cd db-4.8.30.NC/build_unix
-          sed -i 's/__atomic_compare_exchange/__atomic_compare_exchange_db/' ../dbinc/atomic.h
-          ../dist/configure --enable-cxx --disable-shared --with-pic --prefix=/opt/bdb48
-          make -j$(nproc)
-          sudo make install
+          mkdir build
+          cd build
+          cmake -G "Visual Studio 17 2022" -A x64 ..
+          cmake --build . --config Release
 
-      - name: Build
-        run: |
-          ./autogen.sh
-          ./configure --with-gui=no --disable-tests --disable-bench --without-miniupnpc \
-            BDB_LIBS="-L/opt/bdb48/lib -ldb_cxx" \
-            BDB_CFLAGS="-I/opt/bdb48/include"
-          make -j$(nproc)
-
-      - name: Package
-        run: |
-          mkdir -p kapcoin-${{ github.ref_name }}-linux-x86_64
-          cp src/kapcoind kapcoin-${{ github.ref_name }}-linux-x86_64/kapcoind
-          cp src/kapcoin-cli kapcoin-${{ github.ref_name }}-linux-x86_64/kapcoin-cli
-          cp README.md COPYING kapcoin-${{ github.ref_name }}-linux-x86_64/
-          tar czf kapcoin-${{ github.ref_name }}-linux-x86_64.tar.gz kapcoin-${{ github.ref_name }}-linux-x86_64/
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: kapcoin-linux-x86_64
-          path: kapcoin-${{ github.ref_name }}-linux-x86_64.tar.gz
-
-  build-macos:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          brew install autoconf automake berkeley-db@4 boost libevent libtool \
-            fmt openssl pkg-config protobuf zeromq
-
-      - name: Create boost_system stub
-        run: |
-          # Boost 1.86+ makes boost_system header-only; configure still looks for the lib
-          if [ ! -f "$(brew --prefix boost)/lib/libboost_system.a" ]; then
-            echo 'void boost_system_stub() {}' | cc -xc -c -o /tmp/bs.o -
-            ar rcs "$(brew --prefix boost)/lib/libboost_system.a" /tmp/bs.o
-          fi
-
-      - name: Build
-        run: |
-          ./autogen.sh
-          ./configure --with-gui=no --disable-tests --disable-bench --without-miniupnpc \
-            BDB_LIBS="-L$(brew --prefix berkeley-db@4)/lib -ldb_cxx" \
-            BDB_CFLAGS="-I$(brew --prefix berkeley-db@4)/include" \
-            --with-boost=$(brew --prefix boost) \
-            LDFLAGS="-L$(brew --prefix)/lib" \
-            CPPFLAGS="-I$(brew --prefix)/include"
-          make -j$(sysctl -n hw.ncpu)
-
-      - name: Package
-        run: |
-          mkdir -p kapcoin-${{ github.ref_name }}-macos-arm64
-          cp src/kapcoind kapcoin-${{ github.ref_name }}-macos-arm64/kapcoind
-          cp src/kapcoin-cli kapcoin-${{ github.ref_name }}-macos-arm64/kapcoin-cli
-          cp README.md COPYING kapcoin-${{ github.ref_name }}-macos-arm64/
-          tar czf kapcoin-${{ github.ref_name }}-macos-arm64.tar.gz kapcoin-${{ github.ref_name }}-macos-arm64/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: kapcoin-macos-arm64
-          path: kapcoin-${{ github.ref_name }}-macos-arm64.tar.gz
-
-  release:
-    needs: [build-linux, build-macos]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            kapcoin-*.tar.gz
-          body: |
-            ## Kapcoin ${{ github.ref_name }}
-
-            Pre-built binaries for kapcoin. Download the archive for your platform, extract, and run `kapcoind`.
-
-            ### Connect to the network
-            ```
-            ./kapcoind -daemon -addnode=163.192.54.36:9555
-            ```
-
-            See [README](README.md) for full instructions.
+          name: kapcoin-windows-wallet
+          path: build/src/qt/Release/kapcoin-qt.exe

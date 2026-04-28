@@ -1,6 +1,6 @@
 # Kapcoin (KAP)
 
-A scrypt proof-of-work cryptocurrency, consisting of a fully functional Layer-1 chain and (hopefully) robust architecture and tooling for network participants.
+A scrypt proof-of-work cryptocurrency,  consisting of a fully functional Layer-1 chain and (hopefully) robust architecture and tooling for network participants.
 
 ## About the Coin
 

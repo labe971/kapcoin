@@ -1,30 +1,38 @@
 name: Build Windows Wallet
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ master, main ]
+on: [workflow_dispatch, push]
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          choco install bdb boost openssl
+          sudo apt-get update
+          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git
+          sudo apt-get install -y g++-mingw-w64-x86-64
 
-      - name: Build Kapcoin
+      - name: Build Wallet
         run: |
-          mkdir build
-          cd build
-          cmake -G "Visual Studio 17 2022" -A x64 ..
-          cmake --build . --config Release
+          # Questo comando prepara il compilatore per Windows dentro Linux
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+          
+          # Entriamo nella cartella delle dipendenze e le costruiamo
+          cd depends
+          make HOST=x86_64-w64-mingw32 -j$(nproc)
+          cd ..
+          
+          # Compiliamo il wallet vero e proprio
+          ./autogen.sh
+          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32
+          make -j$(nproc)
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kapcoin-windows-wallet
-          path: build/src/qt/Release/kapcoin-qt.exe
+          name: kapcoin-windows-exe
+          path: |
+            src/qt/kapcoin-qt.exe
+            src/kapcoind.exe

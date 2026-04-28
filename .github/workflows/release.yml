@@ -11,20 +11,21 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git g++-mingw-w64-x86_64
+          sudo apt-get install -y build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git g++-mingw-w64-x86-64-posix
 
       - name: Build Kapcoin Daemon
         run: |
+          # Impostiamo il compilatore corretto
           sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
           
-          # Costruiamo le dipendenze ESCLUDENDO la grafica (Qt)
+          # Costruiamo le dipendenze senza grafica
           cd depends
           make HOST=x86_64-w64-mingw32 NO_QT=1 -j$(nproc)
           cd ..
           
-          # Compiliamo solo il daemon e il CLI
+          # Compiliamo il daemon
           ./autogen.sh
-          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench
+          ./configure --prefix=`pwd`/depends/x86_64-w64-mingw32 --without-gui --without-miniupnpc --disable-tests --disable-bench --enable-util-cli
           make -j$(nproc)
 
       - name: Upload Artifact
